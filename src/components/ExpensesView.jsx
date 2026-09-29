@@ -26,10 +26,36 @@ export default function ExpensesView({
   // Form states
   const [category, setCategory] = useState('cleaning');
   const [description, setDescription] = useState('');
+  const [currencyMode, setCurrencyMode] = useState('usd'); // 'usd' | 'ars'
   const [amount, setAmount] = useState('');
+  const [amountArs, setAmountArs] = useState('');
+  const [exchangeRate, setExchangeRate] = useState('1250');
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Recalculate USD when ARS amount or exchange rate changes
+  const handleArsChange = (valArs, rate) => {
+    setAmountArs(valArs);
+    const numArs = parseFloat(valArs) || 0;
+    const numRate = parseFloat(rate) || 1;
+    if (numArs > 0 && numRate > 0) {
+      const convertedUsd = (numArs / numRate).toFixed(2);
+      setAmount(convertedUsd);
+    } else {
+      setAmount('');
+    }
+  };
+
+  const handleRateChange = (rate) => {
+    setExchangeRate(rate);
+    const numArs = parseFloat(amountArs) || 0;
+    const numRate = parseFloat(rate) || 1;
+    if (numArs > 0 && numRate > 0) {
+      const convertedUsd = (numArs / numRate).toFixed(2);
+      setAmount(convertedUsd);
+    }
+  };
 
   // Total expenses calculation
   const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
@@ -40,17 +66,27 @@ export default function ExpensesView({
 
     setIsSubmitting(true);
     try {
+      // Append conversion details to notes if paid in ARS so user has proof
+      let finalNotes = notes.trim();
+      if (currencyMode === 'ars' && amountArs) {
+        const arsFormatted = Number(amountArs).toLocaleString('es-AR');
+        const conversionTag = `[Pagado: $${arsFormatted} ARS @ TC $${exchangeRate}]`;
+        finalNotes = finalNotes ? `${finalNotes} • ${conversionTag}` : conversionTag;
+      }
+
       await onCreateExpense({
         category,
         description: description.trim(),
         amount: Number(amount),
         expense_date: expenseDate,
-        notes: notes.trim(),
+        notes: finalNotes,
       });
       setShowModal(false);
       setDescription('');
       setAmount('');
+      setAmountArs('');
       setNotes('');
+      setCurrencyMode('usd');
     } catch (err) {
       alert(err.message || 'Error al guardar gasto');
     } finally {
@@ -254,25 +290,152 @@ export default function ExpensesView({
                 />
               </div>
 
+              {/* Currency Selector (USD vs ARS) */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Monto en USD *
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Moneda de Pago
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400">$</span>
-                  <input
-                    type="number"
-                    step="any"
-                    min="0.01"
-                    required
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full pl-8 pr-14 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-lg font-bold text-slate-900 focus:bg-white focus:outline-none"
-                  />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-semibold text-xs text-slate-400">USD</span>
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrencyMode('usd');
+                      setAmountArs('');
+                    }}
+                    className={`py-2 text-xs font-bold rounded-lg transition-all ${
+                      currencyMode === 'usd'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    💵 Directo en Dólares (USD)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrencyMode('ars');
+                      if (amountArs && exchangeRate) {
+                        handleArsChange(amountArs, exchangeRate);
+                      }
+                    }}
+                    className={`py-2 text-xs font-bold rounded-lg transition-all ${
+                      currencyMode === 'ars'
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🇦🇷 En Pesos (ARS con Conversor)
+                  </button>
                 </div>
               </div>
+
+              {/* ARS Mode: Pesos + Tipo de Cambio */}
+              {currencyMode === 'ars' ? (
+                <div className="p-4 bg-blue-50/60 rounded-2xl border border-blue-200/80 space-y-3 animate-in fade-in duration-150">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-blue-900 mb-1">
+                        Monto en Pesos ($ ARS) *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">$</span>
+                        <input
+                          type="number"
+                          step="any"
+                          min="1"
+                          required={currencyMode === 'ars'}
+                          placeholder="Ej: 65000"
+                          value={amountArs}
+                          onChange={(e) => handleArsChange(e.target.value, exchangeRate)}
+                          className="w-full pl-7 pr-12 py-2 bg-white border border-blue-300 rounded-xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-xs text-blue-600">ARS</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-blue-900 mb-1">
+                        Tipo de Cambio ($ / USD) *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">$</span>
+                        <input
+                          type="number"
+                          step="any"
+                          min="1"
+                          required={currencyMode === 'ars'}
+                          placeholder="Ej: 1250"
+                          value={exchangeRate}
+                          onChange={(e) => handleRateChange(e.target.value)}
+                          className="w-full pl-7 pr-16 py-2 bg-white border border-blue-300 rounded-xl text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                        />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-semibold text-[11px] text-slate-500">/ USD</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick exchange rate suggestions */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    <span className="text-[11px] text-blue-800 font-semibold">TC sugeridos:</span>
+                    {[1200, 1250, 1300, 1350, 1400].map((rate) => (
+                      <button
+                        key={rate}
+                        type="button"
+                        onClick={() => handleRateChange(String(rate))}
+                        className={`px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                          exchangeRate === String(rate)
+                            ? 'bg-blue-600 text-white font-bold'
+                            : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-100'
+                        }`}
+                      >
+                        ${rate}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Conversion result display */}
+                  <div className="p-3 bg-white rounded-xl border border-blue-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-500 block">
+                        Equivalente digitado en Dólares:
+                      </span>
+                      {Number(amountArs) > 0 && Number(exchangeRate) > 0 ? (
+                        <span className="text-xs text-blue-800">
+                          ${Number(amountArs).toLocaleString('es-AR')} ARS ÷ ${exchangeRate}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">Ingresa los pesos y el tipo de cambio</span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xl font-black text-emerald-600">
+                        ${amount || '0.00'} <span className="text-xs font-normal text-slate-500">USD</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Mode USD: Direct USD */
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Monto en USD *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400">$</span>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      required
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="w-full pl-8 pr-14 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-lg font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-semibold text-xs text-slate-400">USD</span>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
