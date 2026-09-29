@@ -6,6 +6,23 @@ import {
 } from 'lucide-react';
 import { formatUSD, formatShortDate, formatDateSpanWithMonths } from '../utils/formatters';
 
+const DEFAULT_STATS = {
+  currentYear: new Date().getFullYear().toString(),
+  incomeYear: 0,
+  expensesYear: 0,
+  netProfitYear: 0,
+  adr: 0,
+  totalNightsYear: 0,
+  occupancyPercentage: 0,
+  activeStats: {
+    fullyPaidCount: 0,
+    pendingCount: 0,
+    totalPendingAmount: 0
+  },
+  upcomingCheckins: [],
+  upcomingCheckouts: []
+};
+
 export default function Dashboard({
   stats,
   onOpenNewBooking,
@@ -14,7 +31,7 @@ export default function Dashboard({
   onNavigateToTab,
   onRefresh
 }) {
-  if (!stats) return null;
+  const currentStats = stats || DEFAULT_STATS;
 
   return (
     <div className="space-y-6">
@@ -22,7 +39,7 @@ export default function Dashboard({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
         <div>
           <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
-            Resumen General {stats.currentYear}
+            Resumen General {currentStats.currentYear}
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-0.5">
             Panel de Control del Departamento
@@ -63,7 +80,7 @@ export default function Dashboard({
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Ganancia Neta {stats.currentYear}
+              Ganancia Neta {currentStats.currentYear}
             </span>
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
               <TrendingUp className="w-5 h-5" />
@@ -71,12 +88,12 @@ export default function Dashboard({
           </div>
           <div className="mt-3">
             <span className="text-2xl sm:text-3xl font-black text-slate-900">
-              {formatUSD(stats.netProfitYear)}
+              {formatUSD(currentStats.netProfitYear)}
             </span>
             <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-              <span>Cobrado: <strong>{formatUSD(stats.incomeYear)}</strong></span>
+              <span>Cobrado: <strong>{formatUSD(currentStats.incomeYear)}</strong></span>
               <span>•</span>
-              <span>Gastos: <strong>{formatUSD(stats.expensesYear)}</strong></span>
+              <span>Gastos: <strong>{formatUSD(currentStats.expensesYear)}</strong></span>
             </div>
           </div>
         </div>
@@ -88,7 +105,7 @@ export default function Dashboard({
               <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider block">
                 ADR Promedio / Noche
               </span>
-              <span className="text-[11px] text-slate-400">Año {stats.currentYear}</span>
+              <span className="text-[11px] text-slate-400">Año {currentStats.currentYear}</span>
             </div>
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
               <BedDouble className="w-5 h-5" />
@@ -96,10 +113,10 @@ export default function Dashboard({
           </div>
           <div className="mt-3">
             <span className="text-2xl sm:text-3xl font-black text-indigo-900">
-              {formatUSD(stats.adr)} <span className="text-xs text-slate-400 font-normal">/ noche</span>
+              {formatUSD(currentStats.adr)} <span className="text-xs text-slate-400 font-normal">/ noche</span>
             </span>
             <div className="text-xs text-slate-500 mt-1">
-              Sobre <strong>{stats.totalNightsYear || 0}</strong> noches reservadas este año
+              Sobre <strong>{currentStats.totalNightsYear || 0}</strong> noches reservadas este año
             </div>
           </div>
         </div>
@@ -119,10 +136,10 @@ export default function Dashboard({
           </div>
           <div className="mt-3">
             <span className="text-2xl sm:text-3xl font-black text-amber-900">
-              {formatUSD(stats.activeStats?.totalPendingAmount || 0)}
+              {formatUSD(currentStats.activeStats?.totalPendingAmount || 0)}
             </span>
             <div className="flex items-center justify-between text-xs text-amber-700/80 mt-1">
-              <span>{stats.activeStats?.pendingCount || 0} clientes deben cuotas</span>
+              <span>{currentStats.activeStats?.pendingCount || 0} clientes deben cuotas</span>
               <span className="font-bold underline flex items-center gap-0.5">Ver cobros →</span>
             </div>
           </div>
@@ -143,7 +160,7 @@ export default function Dashboard({
           </div>
           <div className="mt-3">
             <span className="text-2xl sm:text-3xl font-black text-emerald-950">
-              {stats.activeStats?.fullyPaidCount || 0}
+              {currentStats.activeStats?.fullyPaidCount || 0}
             </span>
             <div className="text-xs text-emerald-700 mt-1 flex items-center justify-between">
               <span>Reservas activas liquidadas</span>
@@ -172,13 +189,13 @@ export default function Dashboard({
             </button>
           </div>
 
-          {(!stats.upcomingCheckins || stats.upcomingCheckins.length === 0) ? (
+          {(!currentStats.upcomingCheckins || currentStats.upcomingCheckins.length === 0) ? (
             <div className="py-8 text-center text-slate-400 text-xs">
               No hay check-ins programados para los próximos días.
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {stats.upcomingCheckins.map((b) => (
+              {currentStats.upcomingCheckins.map((b) => (
                 <div key={b.id} className="py-3 flex items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
@@ -225,13 +242,13 @@ export default function Dashboard({
             </button>
           </div>
 
-          {(!stats.upcomingCheckouts || stats.upcomingCheckouts.length === 0) ? (
+          {(!currentStats.upcomingCheckouts || currentStats.upcomingCheckouts.length === 0) ? (
             <div className="py-8 text-center text-slate-400 text-xs">
               No hay salidas inmediatas pendientes.
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {stats.upcomingCheckouts.map((b) => (
+              {currentStats.upcomingCheckouts.map((b) => (
                 <div key={b.id} className="py-3 flex items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
