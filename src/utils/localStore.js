@@ -1,138 +1,17 @@
-// In-browser storage adapter for Vercel and offline environments.
-// Enables the entire application to work 100% client-side if a backend server is not available.
+// In-browser storage adapter for offline environments.
 
 const STORAGE_KEYS = {
-  GUESTS: 'depto_rentas_guests_v1',
-  BOOKINGS: 'depto_rentas_bookings_v1',
-  PAYMENTS: 'depto_rentas_payments_v1',
-  EXPENSES: 'depto_rentas_expenses_v1',
-  SETTINGS: 'depto_rentas_settings_v1',
+  GUESTS: 'depto_rentas_guests_v2',
+  BOOKINGS: 'depto_rentas_bookings_v2',
+  PAYMENTS: 'depto_rentas_payments_v2',
+  EXPENSES: 'depto_rentas_expenses_v2',
+  SETTINGS: 'depto_rentas_settings_v2',
 };
 
-const INITIAL_GUESTS = [
-  {
-    id: 1,
-    name: 'Carlos Méndez',
-    phone: '+54 9 11 5544-3322',
-    email: 'carlos.mendez@example.com',
-    document_id: '34.889.120',
-    city: 'Córdoba, Argentina',
-    rating: 5,
-    notes: 'Huésped habitual. Siempre deja el depto impecable.',
-    tags: ['⭐ Repetir', '👌 Muy educados', '💎 Clientes fieles'],
-    total_bookings: 1,
-    total_spent: 650,
-    created_at: '2026-09-20'
-  },
-  {
-    id: 2,
-    name: 'Sophie Dupont',
-    phone: '+33 6 12 34 56 78',
-    email: 'sophie.dupont@paris.fr',
-    document_id: 'FR-889123',
-    city: 'París, Francia',
-    rating: 5,
-    notes: 'Turista tranquila, sin quejas de vecinos.',
-    tags: ['👌 Muy educados', '🧹 Cuidaron todo'],
-    total_bookings: 1,
-    total_spent: 480,
-    created_at: '2026-09-21'
-  },
-  {
-    id: 3,
-    name: 'Esteban Rossi',
-    phone: '+54 9 341 876-5432',
-    email: 'esteban.rossi@gmail.com',
-    document_id: '38.221.904',
-    city: 'Rosario, Argentina',
-    rating: 4,
-    notes: 'Viaja por trabajo con su notebook.',
-    tags: ['🔇 Silenciosos', '⭐ Repetir'],
-    total_bookings: 1,
-    total_spent: 420,
-    created_at: '2026-09-10'
-  }
-];
-
-const INITIAL_BOOKINGS = [
-  {
-    id: 1,
-    guest_id: 1,
-    guest_name: 'Carlos Méndez',
-    guest_phone: '+54 9 11 5544-3322',
-    origin: 'particular',
-    start_date: '2026-10-05',
-    end_date: '2026-10-12',
-    check_in_time: '15:00',
-    check_out_time: '11:00',
-    nights: 7,
-    total_price: 650,
-    has_deposit: true,
-    deposit_amount: 100,
-    deposit_status: 'paid',
-    status: 'confirmed',
-    cleaning_status: 'cleaned',
-    notes: 'Solicitó check-in tarde',
-    post_checkout_notes: '',
-    post_checkout_tags: []
-  },
-  {
-    id: 2,
-    guest_id: 2,
-    guest_name: 'Sophie Dupont',
-    guest_phone: '+33 6 12 34 56 78',
-    origin: 'airbnb',
-    start_date: '2026-10-15',
-    end_date: '2026-10-20',
-    check_in_time: '14:00',
-    check_out_time: '11:00',
-    nights: 5,
-    total_price: 480,
-    has_deposit: false,
-    deposit_amount: 0,
-    deposit_status: 'none',
-    status: 'confirmed',
-    cleaning_status: 'cleaned',
-    notes: 'Reserva Airbnb',
-    post_checkout_notes: '',
-    post_checkout_tags: []
-  },
-  {
-    id: 3,
-    guest_id: 3,
-    guest_name: 'Esteban Rossi',
-    guest_phone: '+54 9 341 876-5432',
-    origin: 'particular',
-    start_date: '2026-09-10',
-    end_date: '2026-09-15',
-    check_in_time: '15:00',
-    check_out_time: '11:00',
-    nights: 5,
-    total_price: 420,
-    has_deposit: false,
-    deposit_amount: 0,
-    deposit_status: 'none',
-    status: 'completed',
-    cleaning_status: 'cleaned',
-    notes: '',
-    post_checkout_notes: 'Excelente estadía, súper puntual para el check-out.',
-    post_checkout_tags: ['👌 Muy educados', '⭐ Repetir']
-  }
-];
-
-const INITIAL_PAYMENTS = [
-  { id: 1, booking_id: 1, amount: 200, payment_date: '2026-09-20', payment_method: 'transfer', reference: 'Seña 30% banco' },
-  { id: 2, booking_id: 1, amount: 100, payment_date: '2026-09-25', payment_method: 'cash_usd', reference: 'Abono en mano' },
-  { id: 3, booking_id: 2, amount: 480, payment_date: '2026-09-18', payment_method: 'other', reference: 'Liquidación Airbnb' },
-  { id: 4, booking_id: 3, amount: 420, payment_date: '2026-09-08', payment_method: 'transfer', reference: 'Pago total adelantado' }
-];
-
-const INITIAL_EXPENSES = [
-  { id: 1, category: 'cleaning', description: 'Limpieza profunda post-check-out', amount: 45, expense_date: '2026-09-15', notes: 'Servicio María' },
-  { id: 2, category: 'maintenance', description: 'Reparación canilla baño y cambio de cuerito', amount: 35, expense_date: '2026-09-18', notes: 'Plomero Juan' },
-  { id: 3, category: 'services', description: 'Internet Fibra 300 Megas + Cable', amount: 28, expense_date: '2026-09-05', notes: 'Abono mensual' },
-  { id: 4, category: 'supplies', description: 'Pack sábanas blancas algodón + toallas nuevas', amount: 75, expense_date: '2026-09-02', notes: 'Insumos recambio' }
-];
+const INITIAL_GUESTS = [];
+const INITIAL_BOOKINGS = [];
+const INITIAL_PAYMENTS = [];
+const INITIAL_EXPENSES = [];
 
 function getStored(key, defaultVal) {
   try {
@@ -152,12 +31,22 @@ function setStored(key, val) {
 }
 
 export const localStore = {
-  // Initialize sample data if not present
+  // Clear any legacy demo data from localStorage and initialize clean empty arrays
   init: () => {
-    if (!localStorage.getItem(STORAGE_KEYS.GUESTS)) setStored(STORAGE_KEYS.GUESTS, INITIAL_GUESTS);
-    if (!localStorage.getItem(STORAGE_KEYS.BOOKINGS)) setStored(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
-    if (!localStorage.getItem(STORAGE_KEYS.PAYMENTS)) setStored(STORAGE_KEYS.PAYMENTS, INITIAL_PAYMENTS);
-    if (!localStorage.getItem(STORAGE_KEYS.EXPENSES)) setStored(STORAGE_KEYS.EXPENSES, INITIAL_EXPENSES);
+    // Purge old v1 demo keys if present
+    const oldKeys = [
+      'depto_rentas_guests_v1',
+      'depto_rentas_bookings_v1',
+      'depto_rentas_payments_v1',
+      'depto_rentas_expenses_v1',
+      'depto_rentas_settings_v1'
+    ];
+    oldKeys.forEach(k => localStorage.removeItem(k));
+
+    if (!localStorage.getItem(STORAGE_KEYS.GUESTS)) setStored(STORAGE_KEYS.GUESTS, []);
+    if (!localStorage.getItem(STORAGE_KEYS.BOOKINGS)) setStored(STORAGE_KEYS.BOOKINGS, []);
+    if (!localStorage.getItem(STORAGE_KEYS.PAYMENTS)) setStored(STORAGE_KEYS.PAYMENTS, []);
+    if (!localStorage.getItem(STORAGE_KEYS.EXPENSES)) setStored(STORAGE_KEYS.EXPENSES, []);
   },
 
   getStats: (targetYear) => {
