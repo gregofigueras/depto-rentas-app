@@ -1,22 +1,15 @@
 import { localStore } from './localStore';
 
 const API_BASE = '/api';
-let useLocalFallback = false;
 
-// Helper to attempt backend request first; if 404 or network failure (e.g. Vercel static deployment),
-// smoothly fallback to in-browser storage without crashing the UI.
+// Helper to attempt backend request first; if 404 or network failure (e.g. offline dev),
+// gracefully fallback to in-browser storage without crashing the UI.
 async function requestWithFallback(url, options = {}, fallbackFn) {
-  if (useLocalFallback) {
-    return fallbackFn();
-  }
-
   try {
     const res = await fetch(url, options);
-    // If backend endpoint is missing (404) or server unavailable, switch to local storage
     if (!res.ok) {
       if (res.status === 404 || res.status === 502 || res.status === 503 || res.status === 504) {
-        console.info(`[Depto App] Endpoint ${url} no disponible en este entorno (${res.status}). Usando almacenamiento local del navegador.`);
-        useLocalFallback = true;
+        console.warn(`[Depto App] Endpoint ${url} no disponible (${res.status}). Usando fallback.`);
         return fallbackFn();
       }
       const err = await res.json().catch(() => ({}));
@@ -24,13 +17,25 @@ async function requestWithFallback(url, options = {}, fallbackFn) {
     }
     return res.json();
   } catch (err) {
-    console.info(`[Depto App] No se pudo conectar con backend (${url}). Activando almacenamiento local.`);
-    useLocalFallback = true;
+    console.warn(`[Depto App] Error de conexión (${url}). Usando datos locales.`, err.message);
     return fallbackFn();
   }
 }
 
 export const api = {
+  // Check backend and DB status
+  checkHealth: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/health`, { method: 'GET' });
+      if (res.ok) {
+        return await res.json();
+      }
+      return { status: 'fallback', mode: 'local', isPostgres: false };
+    } catch {
+      return { status: 'fallback', mode: 'local', isPostgres: false };
+    }
+  },
+
   // Stats
   getStats: async (year) => {
     return requestWithFallback(

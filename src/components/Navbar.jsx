@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, LayoutDashboard, CreditCard, Calendar, 
-  Users, Receipt, Calculator, Download, Plus, BookOpen
+  Users, Receipt, Calculator, Download, Plus, BookOpen, Database
 } from 'lucide-react';
 import { api } from '../utils/api';
 
@@ -12,6 +12,18 @@ export default function Navbar({
   onOpenCalculator,
   onOpenNewBooking
 }) {
+  const [dbInfo, setDbInfo] = useState({ mode: 'loading', isPostgres: false });
+
+  useEffect(() => {
+    let mounted = true;
+    api.checkHealth().then(res => {
+      if (mounted) {
+        setDbInfo(res);
+      }
+    });
+    return () => { mounted = false; };
+  }, []);
+
   const handleDownloadBackup = async () => {
     try {
       const data = await api.getBackup();
@@ -51,9 +63,22 @@ export default function Navbar({
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <span className="font-black text-slate-900 text-base sm:text-lg leading-tight block">
-                Depto Temporario
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-slate-900 text-base sm:text-lg leading-tight block">
+                  Depto Temporario
+                </span>
+                {dbInfo.isPostgres ? (
+                  <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    PostgreSQL
+                  </span>
+                ) : dbInfo.mode === 'sqlite' ? (
+                  <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    SQLite
+                  </span>
+                ) : null}
+              </div>
               <span className="text-[11px] font-semibold text-slate-400 block -mt-0.5">
                 Airbnb & Particulares • USD
               </span>

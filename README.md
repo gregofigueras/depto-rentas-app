@@ -89,5 +89,35 @@ npm run dev
 ## 🛠️ Tecnologías Utilizadas
 
 - **Frontend**: React 19, Tailwind CSS v4, Lucide Icons, Canvas Confetti.
-- **Backend**: Node.js, Express 5, Better-SQLite3, Node-iCal, Axios.
-- **Base de Datos**: SQLite local (`data/rentas.db`), rápida, confiable y portable sin configuraciones externas.
+- **Backend**: Node.js, Express 5, Node-iCal, Axios.
+- **Base de Datos**: 
+  - 🐘 **PostgreSQL** (en la nube o local mediante `DATABASE_URL` / `POSTGRES_URL`), sincronizada en tiempo real entre tu computadora y teléfono.
+  - 📁 **SQLite** local (`data/rentas.db`) como respaldo automático si no se define base de datos remota.
+
+---
+
+## 🐘 Conexión con Base de Datos PostgreSQL
+
+Puedes conectar la aplicación a cualquier servicio de PostgreSQL (gratuito) como **Neon** (recomendado), **Supabase**, **Vercel Postgres** o **Railway**.
+
+### 1. Obtén tu URL de conexión en Neon o Supabase (Gratis en 1 minuto):
+1. Ve a [neon.tech](https://neon.tech) o [supabase.com](https://supabase.com) y crea una cuenta gratuita.
+2. Crea un proyecto (ej: `depto-rentas`).
+3. Copia la cadena de conexión (`DATABASE_URL`), que tiene este formato:
+   ```
+   postgresql://usuario:contraseña@ep-xxxxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
+
+### 2. Para usar en Vercel (Producción sincronizada):
+1. En tu panel de **Vercel**, ve a tu proyecto -> **Settings** -> **Environment Variables**.
+2. Añade la variable:
+   - **Key**: `DATABASE_URL`
+   - **Value**: Pega tu URL de PostgreSQL.
+3. Haz un nuevo deploy (o push a GitHub). Las tablas y datos de prueba se crearán automáticamente al iniciar.
+
+### 3. Para usar en Local (Desarrollo en tu PC):
+1. Crea un archivo `.env` en la raíz del proyecto copiando `.env.example`:
+   ```bash
+   DATABASE_URL="tu_url_de_postgresql_aqui"
+   ```
+2. Ejecuta `npm run dev` o inicia con `iniciar-app.bat`. La consola indicará `Modo: PostgreSQL`.
