@@ -7,7 +7,7 @@ const { Pool, types } = pg;
 types.setTypeParser(1700, (val) => (val === null ? null : parseFloat(val)));
 types.setTypeParser(20, (val) => (val === null ? null : parseInt(val, 10)));
 
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL_NON_POOLING;
 const isPg = Boolean(connectionString);
 
 let pool = null;

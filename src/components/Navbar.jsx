@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { 
   Building2, LayoutDashboard, CreditCard, Calendar, 
-  Users, Receipt, Calculator, Download, Plus, BookOpen, Database
+  Users, Receipt, Calculator, Plus, BookOpen
 } from 'lucide-react';
-import { api } from '../utils/api';
 
 export default function Navbar({
   activeTab,
@@ -12,33 +11,6 @@ export default function Navbar({
   onOpenCalculator,
   onOpenNewBooking
 }) {
-  const [dbInfo, setDbInfo] = useState({ mode: 'loading', isPostgres: false });
-
-  useEffect(() => {
-    let mounted = true;
-    api.checkHealth().then(res => {
-      if (mounted) {
-        setDbInfo(res);
-      }
-    });
-    return () => { mounted = false; };
-  }, []);
-
-  const handleDownloadBackup = async () => {
-    try {
-      const data = await api.getBackup();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `backup_depto_rentas_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      alert('Error al descargar copia de seguridad');
-    }
-  };
-
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { 
@@ -63,22 +35,9 @@ export default function Navbar({
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-slate-900 text-base sm:text-lg leading-tight block">
-                  Depto Temporario
-                </span>
-                {dbInfo.isPostgres ? (
-                  <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    PostgreSQL
-                  </span>
-                ) : dbInfo.mode === 'sqlite' ? (
-                  <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                    SQLite
-                  </span>
-                ) : null}
-              </div>
+              <span className="font-black text-slate-900 text-base sm:text-lg leading-tight block">
+                Depto Temporario
+              </span>
               <span className="text-[11px] font-semibold text-slate-400 block -mt-0.5">
                 Airbnb & Particulares • USD
               </span>
@@ -121,14 +80,6 @@ export default function Navbar({
             >
               <Calculator className="w-4 h-4 text-blue-600" />
               <span className="hidden sm:inline">Calculadora</span>
-            </button>
-
-            <button
-              onClick={handleDownloadBackup}
-              className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
-              title="Descargar copia de seguridad en JSON"
-            >
-              <Download className="w-4 h-4" />
             </button>
 
             <button
