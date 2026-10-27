@@ -131,15 +131,18 @@ export default function NewBookingModal({
       return;
     }
 
+    // Auto-detect existing guest if name matches exactly and not yet explicitly clicked
+    const matchedGuest = selectedGuest || guests.find((g) => g.name?.trim().toLowerCase() === finalGuestName.toLowerCase());
+
     setIsSubmitting(true);
     setError('');
 
     try {
       const payload = {
-        guest_id: origin === 'bloqueo' ? null : (selectedGuest ? selectedGuest.id : null),
+        guest_id: origin === 'bloqueo' ? null : (matchedGuest ? matchedGuest.id : null),
         guest_name: origin === 'bloqueo' ? 'Bloqueo / Mantenimiento' : finalGuestName,
-        guest_phone: selectedGuest ? (selectedGuest.phone || guestPhone) : guestPhone,
-        guest_email: selectedGuest ? (selectedGuest.email || guestEmail) : guestEmail,
+        guest_phone: matchedGuest ? (guestPhone || matchedGuest.phone || '') : guestPhone,
+        guest_email: matchedGuest ? (guestEmail || matchedGuest.email || '') : guestEmail,
         origin,
         start_date: startDate,
         end_date: endDate,

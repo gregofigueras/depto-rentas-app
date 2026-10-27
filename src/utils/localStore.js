@@ -163,7 +163,48 @@ export const localStore = {
   createBooking: (data) => {
     localStore.init();
     const bookings = getStored(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
+    const guests = getStored(STORAGE_KEYS.GUESTS, INITIAL_GUESTS);
     const newId = Date.now();
+
+    // Auto-create or link guest in CRM
+    let guestId = data.guest_id || null;
+    if (data.origin !== 'bloqueo' && data.guest_name && data.guest_name.trim()) {
+      const cleanName = data.guest_name.trim();
+      let existingGuest = guests.find((g) => g.id === guestId) || 
+                          guests.find((g) => g.name.trim().toLowerCase() === cleanName.toLowerCase());
+
+      if (existingGuest) {
+        guestId = existingGuest.id;
+        let modified = false;
+        if (!existingGuest.phone && data.guest_phone) {
+          existingGuest.phone = data.guest_phone;
+          modified = true;
+        }
+        if (!existingGuest.email && data.guest_email) {
+          existingGuest.email = data.guest_email;
+          modified = true;
+        }
+        if (modified) {
+          setStored(STORAGE_KEYS.GUESTS, guests);
+        }
+      } else {
+        const newGuest = {
+          id: Date.now() + 1,
+          name: cleanName,
+          phone: data.guest_phone || '',
+          email: data.guest_email || '',
+          document_id: '',
+          city: '',
+          rating: 5,
+          notes: 'Registrado automáticamente desde reserva',
+          tags: ['⭐ Cliente nuevo'],
+          created_at: new Date().toISOString()
+        };
+        guests.push(newGuest);
+        setStored(STORAGE_KEYS.GUESTS, guests);
+        guestId = newGuest.id;
+      }
+    }
 
     // Calculate nights
     const d1 = new Date(data.start_date + 'T00:00:00');
@@ -172,7 +213,7 @@ export const localStore = {
 
     const newBooking = {
       id: newId,
-      guest_id: data.guest_id || null,
+      guest_id: guestId,
       guest_name: data.guest_name,
       guest_phone: data.guest_phone || '',
       origin: data.origin || 'particular',
@@ -213,9 +254,48 @@ export const localStore = {
   updateBooking: (id, data) => {
     localStore.init();
     const bookings = getStored(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
+    const guests = getStored(STORAGE_KEYS.GUESTS, INITIAL_GUESTS);
     const idx = bookings.findIndex((b) => b.id === Number(id));
     if (idx !== -1) {
-      bookings[idx] = { ...bookings[idx], ...data };
+      let guestId = data.guest_id || bookings[idx].guest_id || null;
+      if (data.origin !== 'bloqueo' && data.guest_name && data.guest_name.trim()) {
+        const cleanName = data.guest_name.trim();
+        let existingGuest = guests.find((g) => g.id === guestId) || 
+                            guests.find((g) => g.name.trim().toLowerCase() === cleanName.toLowerCase());
+        if (existingGuest) {
+          guestId = existingGuest.id;
+          let modified = false;
+          if (!existingGuest.phone && data.guest_phone) {
+            existingGuest.phone = data.guest_phone;
+            modified = true;
+          }
+          if (!existingGuest.email && data.guest_email) {
+            existingGuest.email = data.guest_email;
+            modified = true;
+          }
+          if (modified) {
+            setStored(STORAGE_KEYS.GUESTS, guests);
+          }
+        } else {
+          const newGuest = {
+            id: Date.now() + 1,
+            name: cleanName,
+            phone: data.guest_phone || '',
+            email: data.guest_email || '',
+            document_id: '',
+            city: '',
+            rating: 5,
+            notes: 'Registrado automáticamente desde reserva',
+            tags: ['⭐ Cliente nuevo'],
+            created_at: new Date().toISOString()
+          };
+          guests.push(newGuest);
+          setStored(STORAGE_KEYS.GUESTS, guests);
+          guestId = newGuest.id;
+        }
+      }
+
+      bookings[idx] = { ...bookings[idx], ...data, guest_id: guestId };
       setStored(STORAGE_KEYS.BOOKINGS, bookings);
       return bookings[idx];
     }
@@ -296,8 +376,43 @@ export const localStore = {
     const guests = getStored(STORAGE_KEYS.GUESTS, INITIAL_GUESTS);
     const bookings = getStored(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS);
 
+    // Auto-backfill: If any booking has a guest_name not present in guests, add them!
+    let guestAdded = false;
+    bookings.forEach((b) => {
+      if (b.origin !== 'bloqueo' && b.guest_name && b.guest_name.trim()) {
+        const cleanName = b.guest_name.trim();
+        const found = guests.find((g) => g.id === b.guest_id) ||
+                      guests.find((g) => g.name.trim().toLowerCase() === cleanName.toLowerCase());
+        if (!found) {
+          const newG = {
+            id: b.guest_id || (Date.now() + Math.floor(Math.random() * 1000)),
+            name: cleanName,
+            phone: b.guest_phone || '',
+            email: '',
+            document_id: '',
+            city: '',
+            rating: 5,
+            notes: 'Registrado automáticamente desde reserva',
+            tags: ['⭐ Cliente nuevo'],
+            created_at: b.created_at || new Date().toISOString()
+          };
+          guests.push(newG);
+          b.guest_id = newG.id;
+          guestAdded = true;
+        } else if (!b.guest_id) {
+          b.guest_id = found.id;
+          guestAdded = true;
+        }
+      }
+    });
+
+    if (guestAdded) {
+      setStored(STORAGE_KEYS.GUESTS, guests);
+      setStored(STORAGE_KEYS.BOOKINGS, bookings);
+    }
+
     return guests.map((g) => {
-      const gBookings = bookings.filter((b) => b.guest_id === g.id);
+      const gBookings = bookings.filter((b) => b.guest_id === g.id || b.guest_name?.trim().toLowerCase() === g.name.trim().toLowerCase());
       const totalSpent = gBookings.reduce((sum, b) => sum + (Number(b.total_price) || 0), 0);
       return {
         ...g,

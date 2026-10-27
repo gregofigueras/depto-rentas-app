@@ -97,6 +97,40 @@ export default function App() {
 
   // Actions
   const handleCreateOrUpdateBooking = async (payload) => {
+    // Ensure guest is also explicitly created or updated in CRM from the frontend
+    if (payload.origin !== 'bloqueo' && payload.guest_name && payload.guest_name.trim()) {
+      const cleanName = payload.guest_name.trim();
+      const existing = guests.find((g) => g.name?.trim().toLowerCase() === cleanName.toLowerCase());
+      if (existing) {
+        payload.guest_id = existing.id;
+        if ((!existing.phone && payload.guest_phone) || (!existing.email && payload.guest_email)) {
+          await api.updateGuest(existing.id, {
+            ...existing,
+            phone: existing.phone || payload.guest_phone || '',
+            email: existing.email || payload.guest_email || ''
+          });
+        }
+      } else if (!payload.guest_id) {
+        try {
+          const newG = await api.createGuest({
+            name: cleanName,
+            phone: payload.guest_phone || '',
+            email: payload.guest_email || '',
+            document_id: '',
+            city: '',
+            rating: 5,
+            notes: 'Registrado automáticamente desde reserva',
+            tags: ['⭐ Cliente nuevo']
+          });
+          if (newG && newG.id) {
+            payload.guest_id = newG.id;
+          }
+        } catch (e) {
+          console.warn('Auto-create guest warning:', e);
+        }
+      }
+    }
+
     if (newBookingInitialData) {
       await api.updateBooking(newBookingInitialData.id, payload);
     } else {

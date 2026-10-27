@@ -52,6 +52,29 @@ app.get('/api/health', (req, res) => {
 // -------------------------------------------------------------
 app.get('/api/guests', async (req, res) => {
   try {
+    // Backfill any bookings that don't have a linked guest record
+    const unlinked = await db.getAll(`
+      SELECT DISTINCT guest_name, guest_phone
+      FROM bookings
+      WHERE origin != 'bloqueo' 
+        AND guest_name IS NOT NULL 
+        AND guest_name != ''
+        AND LOWER(guest_name) NOT IN (SELECT LOWER(name) FROM guests)
+    `);
+
+    for (const b of unlinked) {
+      const gRes = await db.run(
+        `INSERT INTO guests (name, phone, email, notes, tags) VALUES (?, ?, '', ?, ?)`,
+        [b.guest_name.trim(), b.guest_phone || '', 'Registrado automáticamente desde reserva', JSON.stringify(['⭐ Cliente nuevo'])]
+      );
+      if (gRes.lastInsertRowid) {
+        await db.run(
+          `UPDATE bookings SET guest_id = ? WHERE LOWER(guest_name) = LOWER(?) AND (guest_id IS NULL OR guest_id = 0)`,
+          [gRes.lastInsertRowid, b.guest_name.trim()]
+        );
+      }
+    }
+
     const guests = await db.getAll(`
       SELECT g.*, 
         COUNT(b.id) as total_bookings,
@@ -315,10 +338,20 @@ app.post('/api/bookings', async (req, res) => {
     const nights = calculateNights(start_date, end_date);
 
     // If guest doesn't exist in CRM, create them or link if found (case-insensitive)
-    if (!guest_id && origin !== 'bloqueo') {
-      const existingGuest = await db.getOne('SELECT id FROM guests WHERE LOWER(name) = LOWER(?) LIMIT 1', [guest_name.trim()]);
+    if (!guest_id && origin !== 'bloqueo' && guest_name) {
+      const cleanName = guest_name.trim();
+      const existingGuest = await db.getOne('SELECT id, phone, email FROM guests WHERE LOWER(TRIM(name)) = LOWER(?) LIMIT 1', [cleanName]);
       if (existingGuest) {
         guest_id = existingGuest.id;
+        if ((!existingGuest.phone && guest_phone) || (!existingGuest.email && guest_email)) {
+          await db.run(
+            `UPDATE guests SET 
+              phone = CASE WHEN phone IS NULL OR phone = '' THEN ? ELSE phone END,
+              email = CASE WHEN email IS NULL OR email = '' THEN ? ELSE email END
+            WHERE id = ?`,
+            [guest_phone || '', guest_email || '', guest_id]
+          );
+        }
       } else {
         const gRes = await db.run(
           `
@@ -326,11 +359,11 @@ app.post('/api/bookings', async (req, res) => {
           VALUES (?, ?, ?, ?, ?)
         `,
           [
-            guest_name.trim(),
+            cleanName,
             guest_phone || '',
             guest_email || '',
-            'Creado automáticamente desde reserva',
-            JSON.stringify(['nuevo'])
+            'Registrado automáticamente desde reserva',
+            JSON.stringify(['⭐ Cliente nuevo'])
           ]
         );
         guest_id = gRes.lastInsertRowid;
@@ -393,10 +426,11 @@ app.post('/api/bookings', async (req, res) => {
 
 app.put('/api/bookings/:id', async (req, res) => {
   try {
-    const {
+    let {
       guest_id,
       guest_name,
       guest_phone,
+      guest_email,
       origin,
       start_date,
       end_date,
@@ -414,6 +448,29 @@ app.put('/api/bookings/:id', async (req, res) => {
     } = req.body;
 
     const nights = calculateNights(start_date, end_date);
+
+    if (!guest_id && origin !== 'bloqueo' && guest_name) {
+      const cleanName = guest_name.trim();
+      const existingGuest = await db.getOne('SELECT id, phone, email FROM guests WHERE LOWER(TRIM(name)) = LOWER(?) LIMIT 1', [cleanName]);
+      if (existingGuest) {
+        guest_id = existingGuest.id;
+        if ((!existingGuest.phone && guest_phone) || (!existingGuest.email && guest_email)) {
+          await db.run(
+            `UPDATE guests SET 
+              phone = CASE WHEN phone IS NULL OR phone = '' THEN ? ELSE phone END,
+              email = CASE WHEN email IS NULL OR email = '' THEN ? ELSE email END
+            WHERE id = ?`,
+            [guest_phone || '', guest_email || '', guest_id]
+          );
+        }
+      } else {
+        const gRes = await db.run(
+          `INSERT INTO guests (name, phone, email, notes, tags) VALUES (?, ?, ?, ?, ?)`,
+          [cleanName, guest_phone || '', guest_email || '', 'Registrado automáticamente desde reserva', JSON.stringify(['⭐ Cliente nuevo'])]
+        );
+        guest_id = gRes.lastInsertRowid;
+      }
+    }
 
     await db.run(
       `
